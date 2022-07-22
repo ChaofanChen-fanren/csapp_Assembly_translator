@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef struct  CPU_STRUCT
+typedef struct  REG_STRUCT
 {
     union //共享低地址
     {
@@ -26,8 +26,7 @@ typedef struct  CPU_STRUCT
 
     
     u_int64_t rip;
-}cpu_t;
-
-cpu_t cpu; //只有一个cpu
+}reg_t;
+reg_t reg; //只有一个cpu
 
 #endif // REGISTER_H
