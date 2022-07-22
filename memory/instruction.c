@@ -2,11 +2,11 @@
 #include "cpu/mmu.h"
 
 
-uint64_t decode_od(od_t od)
+static uint64_t decode_od(od_t od)
 {
     if(od.type == IMM)
     {
-        return od.imm;
+        return *((uint64_t *)&od.imm); //输出内存的布局,因为imm为有符号数
     }else if (od.type == REG){
         //返回寄存器地址 
         return (uint64_t)od.reg1;
@@ -65,12 +65,15 @@ void instruction_cycle()
     //op = add_reg_reg = 3 
     //handler_table[op] -> handler_table[3] == add_reg_reg_handler
     
-    handler_t handler = handler_table[instr->op];
+    handler_t handler = handler_table[instr->op];  //add_reg_reg_handler
+
+    // add_reg_reg_handler(src = &rax,dst = &rbx)
     handler(src,dst);
     
 }
 void init_handler_table()
 {
+    handler_table[mov_reg_reg] = &mov_reg_reg_handler;
     handler_table[add_reg_reg] = &add_reg_reg_handler;
 }
 void add_reg_reg_handler(uint64_t src,uint64_t dst)
@@ -90,3 +93,5 @@ void add_reg_reg_handler(uint64_t src,uint64_t dst)
     *(uint64_t *)dst = *(uint64_t *)dst + *(uint64_t *)src;
     reg.rip = reg.rip + sizeof(inst_t); //PC+1
 }
+
+void mov_reg_reg_handler(uint64_t src,uint64_t dst);//mov操作指令
