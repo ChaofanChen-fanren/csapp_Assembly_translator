@@ -11,11 +11,9 @@ cpu
 - 只有一个cpu
 
 memory
-
 - 空间大小
 
 instruction
-
 - 操作符
 - 源操作数
 - 目操作数
@@ -70,3 +68,33 @@ char code[100];应该放在inst_t里面
 2. OD_TYPE增加EMPTY，表示对寄存器啥也不做
 3. 汇编指令的填写 program
 4. 寄存器和内存的初始化，然后指令运行后，通过与gdb的调试后看是否match框架搭建 （验证程序写的正确性）
+
+#### 第七节
+
+改：
+
+elf指令填写错误
+
+由于内存是1个字节编址，不能根据地址写来写8个字节，要用函数实现
+
+实现：
+
+1. 内存读写64位
+
+   uint64_t read64bits_dram(uint64_t paddr);
+
+   void write64bits_dram(uint64_t paddr,uint64_t data);
+
+2. 打印相关寄存器和内存的信息
+
+   void print_register();
+
+   void print_stack();
+
+3. 实现call指令和mov指令
+
+   void mov_reg_reg_handler(uint64_t src,uint64_t dst);//mov操作指令
+
+   void call_handler(uint64_t src,uint64_t dst);//call操作指令
+
+4. 成功调试好运行三条指令

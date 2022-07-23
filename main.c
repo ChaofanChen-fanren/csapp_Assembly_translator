@@ -4,6 +4,7 @@
 #include "memory/instruction.h" 
 #include "disk/elf.h"
 #include "memory/dram.h"
+#include "cpu/mmu.h"
 
 int main()
 {
@@ -13,9 +14,10 @@ int main()
     // printf("ax: %04x\n",reg.ax);
     // printf("ah: %02x\n",reg.ah);
     // printf("al: %02x\n",reg.al);
-
+    
     //初始化所有操作符对应动作的函数
     init_handler_table();
+
     //比较gdb所有的寄存器和栈
     reg.rax = 0x12340000;
     reg.rbx = 0x0;
@@ -27,17 +29,34 @@ int main()
     reg.rsp = 0x7ffffffee1f0;
 
     reg.rip = (uint64_t)&program[11];  //程序开始的地方
-    
 
-    mm[va2pa(0x7ffffffee210)] = 0x08000660;  //rbp
-    mm[va2pa(0x7ffffffee20f)] = 0x0;
-    mm[va2pa(0x7ffffffee200)] = 0xabcd;
-    mm[va2pa(0x7ffffffee1ff)] = 0x12340000;
-    mm[va2pa(0x7ffffffee1f0)] = 0x08000060; //rsp
+    write64bits_dram(va2pa(0x7ffffffee210),0x08000660);
+    write64bits_dram(va2pa(0x7ffffffee208),0x0);
+    write64bits_dram(va2pa(0x7ffffffee200),0xabcd);
+    write64bits_dram(va2pa(0x7ffffffee1f8),0x12340000);
+    write64bits_dram(va2pa(0x7ffffffee1f0),0x08000060);
 
+    uint64_t pa = va2pa(0x7ffffffee210);
+    //转化成64位的地址
+    //printf("%16lx\n",*((uint64_t *)(&mm[pa])));
+    printf("%16lx\n",read64bits_dram(pa));
+
+    /**
+     * 错误 64位写到8位
+     * 
+     */
+    // mm[va2pa(0x7ffffffee210)] = 0x08000660;  //rbp
+    // mm[va2pa(0x7ffffffee208)] = 0x0;
+    // mm[va2pa(0x7ffffffee200)] = 0xabcd;
+    // mm[va2pa(0x7ffffffee1f8)] = 0x12340000;
+    // mm[va2pa(0x7ffffffee1f0)] = 0x08000060; //rsp
+    print_register();
+    print_stack();
     //run inst
-    for(int i = 0;i < 15;i++){
+    for(int i = 0;i < 3;i++){
         instruction_cycle();
+        print_register();
+        print_stack();
     }
 
     //verify
@@ -60,11 +79,11 @@ int main()
     }
 
 
-    match = match && ( mm[va2pa(0x7ffffffee210)] == 0x08000660);
-    match = match && ( mm[va2pa(0x7ffffffee20f)] == 0x1234abcd);
-    match = match && ( mm[va2pa(0x7ffffffee200)] == 0xabcd);
-    match = match && ( mm[va2pa(0x7ffffffee1ff)] == 0x12340000);
-    match = match && ( mm[va2pa(0x7ffffffee1f0)] == 0x08000060);
+    match = match && ( read64bits_dram(va2pa(0x7ffffffee210)) == 0x08000660);
+    match = match && ( read64bits_dram(va2pa(0x7ffffffee208)) == 0x1234abcd);
+    match = match && ( read64bits_dram(va2pa(0x7ffffffee200)) == 0xabcd);
+    match = match && ( read64bits_dram(va2pa(0x7ffffffee1f8)) == 0x12340000);
+    match = match && ( read64bits_dram(va2pa(0x7ffffffee1f0)) == 0x08000060);
 
     if(match == 1){
         printf("memory match\n");

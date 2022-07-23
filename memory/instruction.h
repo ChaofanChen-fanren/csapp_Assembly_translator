@@ -51,8 +51,9 @@ handler_t handler_table[NUM_INSTRTYPE];
 
 
 
-static uint64_t decode_od(od_t od);//翻译操作数11类型的的方式
+uint64_t decode_od(od_t od);//翻译操作数11类型的的方式
 void instruction_cycle();//指令周期
+void call_handler(uint64_t src,uint64_t dst);//call操作指令
 void add_reg_reg_handler(uint64_t src,uint64_t dst);//add操作指令
 void mov_reg_reg_handler(uint64_t src,uint64_t dst);//mov操作指令
 void init_handler_table();//初始化handler_table

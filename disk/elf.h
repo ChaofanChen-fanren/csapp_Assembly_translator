@@ -79,9 +79,9 @@ inst_t program[INST_LEN] =
     //main entry point
     {
         mov_reg_reg,
-        {REG,0,0,(uint64_t *)& reg.rax,NULL},
-        {REG,0,0,(uint64_t *)& reg.rdi,NULL},
-        "mov \%rax,\%rdi"
+        {REG,0,0,(uint64_t *)& reg.rdx,NULL},
+        {REG,0,0,(uint64_t *)& reg.rsi,NULL},
+        "mov \%rdx,\%rsi"
     },
     {
         mov_reg_reg,

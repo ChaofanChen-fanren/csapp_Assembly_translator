@@ -1,8 +1,9 @@
 #include "memory/instruction.h"
 #include "cpu/mmu.h"
+#include "memory/dram.h"
+#include <stdio.h>
 
-
-static uint64_t decode_od(od_t od)
+uint64_t decode_od(od_t od)
 {
     if(od.type == IMM)
     {
@@ -15,8 +16,8 @@ static uint64_t decode_od(od_t od)
         //mm
         uint64_t vaddr = 0;
         if(od.type == MM_IMM){
-
-            vaddr = od.imm;
+            //vaddr = od.imm;
+            vaddr = *((uint64_t *)&od.imm);
         }else if(od.type == MM_REG){
 
             vaddr = *(od.reg1);
@@ -69,12 +70,14 @@ void instruction_cycle()
 
     // add_reg_reg_handler(src = &rax,dst = &rbx)
     handler(src,dst);
+    printf("    %s\n",instr->code);
     
 }
 void init_handler_table()
 {
     handler_table[mov_reg_reg] = &mov_reg_reg_handler;
     handler_table[add_reg_reg] = &add_reg_reg_handler;
+    handler_table[call] = &call_handler;
 }
 void add_reg_reg_handler(uint64_t src,uint64_t dst)
 {
@@ -93,5 +96,28 @@ void add_reg_reg_handler(uint64_t src,uint64_t dst)
     *(uint64_t *)dst = *(uint64_t *)dst + *(uint64_t *)src;
     reg.rip = reg.rip + sizeof(inst_t); //PC+1
 }
+void call_handler(uint64_t src,uint64_t dst)//call操作指令
+{   
+    //src: imm address of called function
+    //stcak point - 8;
+    reg.rsp = reg.rsp - 8;
 
-void mov_reg_reg_handler(uint64_t src,uint64_t dst);//mov操作指令
+    //write return address to rsp memory
+    write64bits_dram(
+        va2pa(reg.rsp),
+        reg.rip + sizeof(inst_t)
+    );
+
+    reg.rip = src;
+}
+
+void mov_reg_reg_handler(uint64_t src,uint64_t dst)//mov操作指令
+{
+    /**
+     * src :reg
+     * dst :reg
+     * 
+     */
+    *((uint64_t *)dst) = *((uint64_t *)src);
+    reg.rip = reg.rip + sizeof(inst_t); //PC+1
+}
