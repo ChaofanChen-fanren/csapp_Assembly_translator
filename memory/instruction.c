@@ -77,10 +77,13 @@ void init_handler_table()
 {
     handler_table[mov_reg_reg] = &mov_reg_reg_handler;
     handler_table[mov_reg_mem] = &mov_reg_mem_handler;
+    handler_table[mov_mem_reg] = &mov_mem_reg_handler;
     handler_table[add_reg_reg] = &add_reg_reg_handler;
     handler_table[push_reg] = &push_reg_handler;
     handler_table[pop_reg] = &pop_reg_handler;
     handler_table[call] = &call_handler;
+    handler_table[ret] = &ret_handler;
+    
 }
 void push_reg_handler(uint64_t src,uint64_t dst)
 {
@@ -97,8 +100,11 @@ void push_reg_handler(uint64_t src,uint64_t dst)
 }
 void pop_reg_handler(uint64_t src,uint64_t dst)
 {
-    printf("push\n");  
-
+    //printf("push\n");
+    //src : reg
+    *(uint64_t *)src = read64bits_dram(va2pa(reg.rsp));
+    reg.rsp  = reg.rsp + 8;
+    reg.rip = reg.rip + sizeof(inst_t); //PC+1
 }
 void add_reg_reg_handler(uint64_t src,uint64_t dst)
 {
@@ -114,6 +120,12 @@ void add_reg_reg_handler(uint64_t src,uint64_t dst)
      *   *(uint64_t *)dst = 0xabcd
      *   0x12340000 + 0xabcd = 0x1234abcd
      */
+    /**
+     * 指令填写错误的debug
+    */
+    // printf("=========%16lx\n",*(uint64_t *)src);
+    // printf("=========%16lx\n",*(uint64_t *)dst);
+    // printf("=========%16lx\n",*(uint64_t *)dst + *(uint64_t *)src);
     *(uint64_t *)dst = *(uint64_t *)dst + *(uint64_t *)src;
     reg.rip = reg.rip + sizeof(inst_t); //PC+1
 }
@@ -151,4 +163,17 @@ void mov_reg_mem_handler(uint64_t src,uint64_t dst) //mov指令
         *(uint64_t *)src
     );
     reg.rip = reg.rip + sizeof(inst_t); //PC+1
+}
+void mov_mem_reg_handler(uint64_t src,uint64_t dst) //mov指令
+{
+    //src :mem virtual address
+    //dst :reg
+    *(uint64_t *)dst = read64bits_dram(va2pa(src));
+    reg.rip = reg.rip + sizeof(inst_t); //PC+1
+}
+void ret_handler(uint64_t src,uint64_t dst)//ret指令
+{   
+    uint64_t ret_addr = read64bits_dram(va2pa(reg.rsp));
+    reg.rsp += 8;
+    reg.rip = ret_addr;
 }

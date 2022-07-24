@@ -35,7 +35,7 @@ inst_t program[INST_LEN] =
     },
     {
         mov_mem_reg,
-        {MM_IMM_REG,-0x20,0,(uint64_t *)& reg.rbp,NULL},
+        {MM_IMM_REG,-0x18,0,(uint64_t *)& reg.rbp,NULL},
         {REG,0,0,(uint64_t *)& reg.rdx,NULL},
         
         "mov -0x18(\%rbp),\%rdx"
