@@ -43,7 +43,7 @@ uint64_t decode_od(od_t od)
 
             vaddr =  od.imm + *(od.reg1) +  (*(od.reg2)) * od.scal;
         }
-        return va2pa(vaddr);
+        return vaddr;
     }
 }
 
@@ -76,8 +76,29 @@ void instruction_cycle()
 void init_handler_table()
 {
     handler_table[mov_reg_reg] = &mov_reg_reg_handler;
+    handler_table[mov_reg_mem] = &mov_reg_mem_handler;
     handler_table[add_reg_reg] = &add_reg_reg_handler;
+    handler_table[push_reg] = &push_reg_handler;
+    handler_table[pop_reg] = &pop_reg_handler;
     handler_table[call] = &call_handler;
+}
+void push_reg_handler(uint64_t src,uint64_t dst)
+{
+    //src : reg
+    //dst : empty
+
+    //printf("push\n");
+    reg.rsp = reg.rsp - 0x8;
+    write64bits_dram(
+        va2pa(reg.rsp),
+        *(uint64_t *)src
+    );
+    reg.rip = reg.rip + sizeof(inst_t); //PC+1
+}
+void pop_reg_handler(uint64_t src,uint64_t dst)
+{
+    printf("push\n");  
+
 }
 void add_reg_reg_handler(uint64_t src,uint64_t dst)
 {
@@ -119,5 +140,15 @@ void mov_reg_reg_handler(uint64_t src,uint64_t dst)//mov操作指令
      * 
      */
     *((uint64_t *)dst) = *((uint64_t *)src);
+    reg.rip = reg.rip + sizeof(inst_t); //PC+1
+}
+void mov_reg_mem_handler(uint64_t src,uint64_t dst) //mov指令
+{
+    //src :reg
+    //dst :mem virtual address
+    write64bits_dram(
+        va2pa(dst),
+        *(uint64_t *)src
+    );
     reg.rip = reg.rip + sizeof(inst_t); //PC+1
 }

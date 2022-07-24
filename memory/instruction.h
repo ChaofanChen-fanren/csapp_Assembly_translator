@@ -56,6 +56,8 @@ void instruction_cycle();//指令周期
 void call_handler(uint64_t src,uint64_t dst);//call操作指令
 void add_reg_reg_handler(uint64_t src,uint64_t dst);//add操作指令
 void mov_reg_reg_handler(uint64_t src,uint64_t dst);//mov操作指令
+void pop_reg_handler(uint64_t src,uint64_t dst); //pop指令
+void push_reg_handler(uint64_t src,uint64_t dst);//push指令
 void init_handler_table();//初始化handler_table
-
+void mov_reg_mem_handler(uint64_t src,uint64_t dst); //mov指令
 #endif // INSTRUCTION_H

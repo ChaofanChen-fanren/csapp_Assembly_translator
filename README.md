@@ -11,9 +11,11 @@ cpu
 - 只有一个cpu
 
 memory
+
 - 空间大小
 
 instruction
+
 - 操作符
 - 源操作数
 - 目操作数
@@ -98,3 +100,14 @@ elf指令填写错误
    void call_handler(uint64_t src,uint64_t dst);//call操作指令
 
 4. 成功调试好运行三条指令
+
+第八节
+
+改：decode_od解码返回值改为地址
+
+实现：
+
+1. 指令 push
+   - void push_reg_handler(uint64_t src,uint64_t dst);//push指令
+2. 实现指令mov_reg_mem
+   - void mov_reg_mem_handler(uint64_t src,uint64_t dst); //mov指令
