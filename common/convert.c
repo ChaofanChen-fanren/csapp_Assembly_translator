@@ -40,7 +40,8 @@ uint64_t string2uint_range(const char *str,int start,int end)
                 state = 3;
                 sign_bit = 1;
                 continue;
-            }else if(c == ' '){
+            }else if(c == ' ' || c == '\t' || c == '\r' || c == '\n'){
+                // skip leading spaces
                 state = 0;
                 continue;
             }else{
