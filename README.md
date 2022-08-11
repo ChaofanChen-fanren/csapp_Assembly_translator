@@ -11,11 +11,9 @@ cpu
 - 只有一个cpu
 
 memory
-
 - 空间大小
 
 instruction
-
 - 操作符
 - 源操作数
 - 目操作数
@@ -181,3 +179,43 @@ void write64bits_dram(uint64_t paddr, uint64_t data, core_t *cr);//一次性写6
 `main_hardware.c`
 
 1. 测试递归调用加法函数指令是否与gdb的运行一样
+
+#### 第十次：
+
+- 实现所有汇编指令的函数
+- 将所有的汇编指令存入自己设置的物理内存，不用数组的存
+- 递归累加和两数相加的测试汇编指令执行成功，与gdb调试的一样
+
+#### 第十一节：总结做完的汇编的模拟器
+
+static void parse_instruction(const char **str*, *inst_t* **inst*, *core_t* **cr*);
+
+> 解析每一条指令，顺序遍历用状态转移存储op src  dst字符串
+>
+> 然后分别解析操作符字符串（op) 和操作数字符串（src和dst）
+
+![图片1](ipic/4.png)
+
+static void parse_operand(const char **str*, *od_t* **od*, *core_t* **cr*);
+
+操作的数的类型很多，有11种如下图所示：
+
+![QQ截图20220810233654](ipic/3.png)
+
+![QQ截图20220810220144](ipic/2.png)
+
+解析操作数的类型分为三种情况：
+
+1. 立即数操作数： 以`$`开始
+2. 寄存器操作数： 以`%`开始
+3. 访问内存操作数：也是以状态转移进行解析操作数类型，以`括号数ca 和 逗号数 cb `进行状态划分进行解析
+
+![图片2](ipic/1.png)
+
+*uint64_t* string2uint_range(const char **str*,int *start*,int *end*)；
+
+将字符串操作数转化为无符号数：也是状态转移进行划分进行解析，然后返回无符号数
+
+状态转移如下图：
+
+![状态转移](ipic/%E7%8A%B6%E6%80%81%E8%BD%AC%E7%A7%BB.jpg)
