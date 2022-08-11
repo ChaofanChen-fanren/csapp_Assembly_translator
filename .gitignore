@@ -1,5 +1,4 @@
-exe_linker
-exe_hardware
+/bin
 *.a
 *.o
 *~
