@@ -12,7 +12,7 @@ COMMON = $(SRC_DIR)/common/print.c $(SRC_DIR)/common/convert.c
 # hardware
 CPU =$(SRC_DIR)/hardware/cpu/mmu.c $(SRC_DIR)/hardware/cpu/isa.c
 MEMORY = $(SRC_DIR)/hardware/memory/dram.c
-LINKER = $(SRC_DIR)/linker/parseElf.c
+LINKER = $(SRC_DIR)/linker/parseElf.c $(SRC_DIR)/linker/staticlink.c
 # main
 TEST_HARDWARE = $(SRC_DIR)/tests/test_hardware.c
 TEST_ELF = $(SRC_DIR)/tests/test_elf.c

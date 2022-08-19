@@ -4,23 +4,35 @@
 #include <headers/common.h>
 #include <stdio.h>
 
-int read_elf(const char *filename, uint64_t bufaddr);
-int parse_table_entry(char *str, char ***ent);
 
+// void test_read_elf()
+// {
+//     char buf[MAX_ELF_FILE_LENGTH][MAX_ELF_FILE_WIDTH];
+//     int count = read_elf("./files/exe/sum.elf.txt", (uint64_t)buf);
+//     for (int i = 0; i < count;i++){
+//         printf("%s\n", buf[i]);
+//     }
+// }
 
-void parse_sh(char *str, sh_entry_t *sh);
-void free_table_entry(char **ent, int n);
+void test_link_elf()
+{
+    elf_t src[2];
+    parse_elf("./files/exe/sum.elf.txt", &src[0]);
+    parse_elf("./files/exe/main.elf.txt", &src[1]);
 
-void print_sh_entry(sh_entry_t *sh);
+    elf_t dst;
+    elf_t *srcp[2];
+    srcp[0] = &src[0];
+    srcp[1] = &src[1];
+    link_elf(srcp, 2, &dst);
 
-void parse_elf(char *filename, elf_t *elf);
-void free_elf(elf_t *elf);
+    free_elf(&src[0]);
+    free_elf(&src[1]);
 
+}
 int main()
 {
-    elf_t elf;
 
-    parse_elf("./files/exe/sum.elf.txt", &elf);
-    free_elf(&elf);
+    test_link_elf();
     return 0;
 }
