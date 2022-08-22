@@ -39,6 +39,28 @@ typedef struct
     uint64_t st_size;       // count of lines of symbol
 } st_entry_t;
 
+/*======================================*/
+/*      relocation information          */
+/*======================================*/
+typedef enum
+{
+    R_X86_64_32,
+    R_X86_64_PC32,
+    R_X86_64_PLT32,
+} reltype_t;
+// relocation entry type
+typedef struct
+{
+    /*  this is what's different in our implementation. instead of byte offset, 
+        we use line index + char offset to locate the symbol */
+    uint64_t    r_row;      // line index of the symbol in buffer section
+                            // for .rel.text, that's the line index in .text section
+                            // for .rel.data, that's the line index in .data section
+    uint64_t    r_col;      // char offset in the buffer line
+    reltype_t   type;       // relocation type
+    uint32_t    sym;        // symbol table index
+    int64_t     r_addend;   // constant part of relocation expression
+} rl_entry_t;
 
 #define MAX_ELF_FILE_LENGTH (64)    // max 64 effective lines
 #define MAX_ELF_FILE_WIDTH (128)    // max 128 chars per line
@@ -53,7 +75,16 @@ typedef struct
 
     uint64_t symt_count;
     st_entry_t *symt;
+
+    
+    uint64_t reltext_count;
+    rl_entry_t *reltext;
+
+    uint64_t reldata_count;
+    rl_entry_t *reldata;
 } elf_t;
+
+
 
 void parse_elf(char *filename, elf_t *elf);
 void free_elf(elf_t *elf);

@@ -9,6 +9,7 @@
 
 #define MAX_SYMBOL_MAP_LENGTH 64
 #define MAX_SECTION_BUFFER_LENGTH 64
+#define MAX_RELOCATION_LINES 64
 
 // internal mapping between source and destination symbol entries
 typedef struct
@@ -16,16 +17,52 @@ typedef struct
     elf_t       *elf;   // src elf file
     st_entry_t  *src;   // src symbol
     st_entry_t  *dst;   // dst symbol: used for relocation - find the function referencing the undefined symbol
-    // TODO:
-    // relocation entry (referencing section, referenced symbol) converted to (referencing symbol, referenced symbol) entry
+
 } smap_t;
+
+/* ------------------------------------ */
+/*           Symbol Processing          */
+/* ------------------------------------ */
 static void symbol_processing(elf_t **srcs, int num_srcs, elf_t *dst,
     smap_t *smap_table, int *smap_count);
 static void simple_resolution(st_entry_t *sym, elf_t *sym_elf, smap_t *candidate);
+
+/* ------------------------------------ */
+/*         Section Merging              */
+/* ------------------------------------ */
 static void compute_section_header(elf_t *dst, smap_t *smap_table, int *smap_count);
 static void merge_section(elf_t **srcs, int num_srcs, elf_t *dst,
     smap_t *smap_table, int *smap_count);
 
+/* ------------------------------------ */
+/*            Relocation                */
+/* ------------------------------------ */
+static void relocation_processing(elf_t **srcs, int num_srcs, elf_t *dst,
+    smap_t *smap_table, int *smap_count);
+
+static void R_X86_64_32_handler(elf_t *dst,sh_entry_t *sh, 
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced);
+static void R_X86_64_PC32_handler(elf_t *dst,sh_entry_t *sh, 
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced);
+static void R_X86_64_PLT32_handler(elf_t *dst,sh_entry_t *sh,
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced);
+
+typedef void (*rela_handler_t)(elf_t *dst,sh_entry_t *sh,
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced);
+
+static rela_handler_t handler_table[3] = {
+    &R_X86_64_32_handler,       // 0
+    &R_X86_64_PC32_handler,     // 1
+    // linux commit b21ebf2: x86: Treat R_X86_64_PLT32 as R_X86_64_PC32
+    &R_X86_64_PC32_handler,     // 2
+};
+/* ------------------------------------ */
+/*              Helper                  */
+/* ------------------------------------ */
 static const char *get_stb_string(st_bind_t bind);
 static const char *get_stt_string(st_type_t type);
 
@@ -75,13 +112,24 @@ void link_elf(elf_t **srcs, int num_srcs, elf_t *dst)
     // merge the symbol content from ELF src into dst sections
     merge_section(srcs, num_srcs, dst, smap_table, &smap_count);
 
-    printf("------------after merging the sections---------------\n");
-    for (int i = 0; i < dst->line_count;i++)
+    // printf("------------after merging the sections---------------\n");
+    // for (int i = 0; i < dst->line_count;i++)
+    // {
+    //     printf("%s\n", dst->buffer[i]);
+    // }
+    
+    // UPDATE buffer: relocate the referencing in buffer
+    // relocating: update the relocation entries from ELF files into EOF buffer
+    relocation_processing(srcs, num_srcs, dst, smap_table, &smap_count);
+    // finally, check EOF file
+    if ((DEBUG_VERBOSE_SET & DEBUG_LINKER) != 0)
     {
-        printf("%s\n", dst->buffer[i]);
+        printf("----\nfinal output EOF:\n");
+        for (int i = 0; i < dst->line_count; ++ i)
+        {
+            printf("%s\n", dst->buffer[i]);
+        }
     }
-    // TODO: update dst.buffer for dst.symt
-    // Find the buffer offset for symbol table and write the buffer
 }
 
 static void symbol_processing(elf_t **srcs, int num_srcs, elf_t *dst,
@@ -520,6 +568,190 @@ static void merge_section(elf_t **srcs, int num_srcs, elf_t *dst,
         line_written ++;
     }
     assert(line_written == dst->line_count);
+}
+
+
+// precondition: smap_table.dst is valid
+static void relocation_processing(elf_t **srcs, int num_srcs, elf_t *dst,
+    smap_t *smap_table, int *smap_count)
+{
+    sh_entry_t *eof_text_sh = NULL;
+    sh_entry_t *eof_data_sh = NULL;
+    
+    for(int i = 0;i < dst->sht_count;i++)
+    {
+        if(strcmp(dst->sht[i].sh_name,".text") == 0)
+        {
+            eof_text_sh = &(dst->sht[i]);
+        }
+        else if(strcmp(dst->sht[i].sh_name,".data") == 0)
+        {
+            eof_data_sh = &(dst->sht[i]);
+        }
+    }
+
+    // updata the relocation entries: r_row,r_rol,sym
+    for (int i = 0; i < num_srcs;i++)
+    {
+        elf_t *elf = srcs[i];
+
+        //.rel.text
+        for (int j = 0; j < elf->reltext_count;j++)
+        {
+            rl_entry_t *r = &elf->reltext[j];
+            
+            //search the referencing symbol
+            for (int k = 0; k < elf->symt_count;k++)
+            {
+                st_entry_t *sym = &elf->symt[k];
+
+                if(strcmp(sym->st_shndx,".text") == 0)
+                {
+                    //must be referenced by a .text symbol
+                    //TODO: check if this symbol is the one referencing
+                    int sym_text_start = sym->st_value;
+                    int sym_text_end = sym->st_value + sym->st_size - 1;
+                    
+
+                    if(sym_text_start <= r->r_row && r->r_row <= sym_text_end)
+                    {
+                        // sym[k] is referencing reltext[j].sym
+                        // search the smap table to find the EOF location
+                        int smap_found = 0;
+                        for (int t = 0; t < *smap_count;t++)
+                        {
+                            if(smap_table[t].src == sym)
+                            {
+                                smap_found = 1;
+                                //updata the new referencing position in EOF
+                                st_entry_t *eof_referencing = smap_table[t].dst;
+
+                                //search the being referenced symbol
+                                for (int u = 0; u < *smap_count;u++)
+                                {
+                                    // what is the EOF symbol name?
+                                    // how to get the referenced symbol name
+                                    if (strcmp(elf->symt[r->sym].st_name,smap_table[u].dst->st_name) == 0 && smap_table[u].dst->bind == STB_GLOBAL)
+                                    {
+                                        // till now, the referencing row and referenced row are all found
+                                        //  update the location
+                                        st_entry_t *eof_referenced = smap_table[u].dst;
+                                        (handler_table[(int)r->type])(
+                                            dst, eof_text_sh,
+                                            r->r_row - sym->st_value + eof_referencing->st_value, 
+                                            r->r_col, 
+                                            r->r_addend,
+                                            eof_referenced);
+                                        goto NEXT_REFERENCE_IN_TEXT;
+                                    }
+                                }
+                            }
+                        }
+                        // referencing must be in smap_table
+                        // because it has definition, is a strong symbol
+                        assert(smap_found == 1);
+                    }
+                }
+            }
+            NEXT_REFERENCE_IN_TEXT:
+            ;
+        }
+
+
+
+        // .rel.data
+        for (int j = 0; j < elf->reldata_count; ++ j)
+        {
+            rl_entry_t *r = &elf->reldata[j];
+
+            // search the referencing symbol
+            for (int k = 0; k < elf->symt_count; ++ k)
+            {
+                st_entry_t *sym = &elf->symt[k];
+
+                if (strcmp(sym->st_shndx, ".data") == 0)
+                {
+                    // must be referenced by a .data symbol
+                    // check if this symbol is the one referencing
+                    int sym_data_start = sym->st_value;
+                    int sym_data_end = sym->st_value + sym->st_size - 1;
+
+                    if (sym_data_start <= r->r_row && r->r_row <= sym_data_end)
+                    {
+                        // symt[k] is referencing reldata[j].sym
+                        // search the smap table to find the EOF location
+                        int smap_found = 0;
+                        for (int t = 0; t < *smap_count; ++ t)
+                        {
+                            if (smap_table[t].src == sym)
+                            {
+                                smap_found = 1;
+                                st_entry_t *eof_referencing = smap_table[t].dst;
+
+                                // search the being referenced symbol
+                                for (int u = 0; u < *smap_count; ++ u)
+                                {
+                                    // what is the EOF symbol name?
+                                    // how to get the referenced symbol name
+                                    if (strcmp(elf->symt[r->sym].st_name, smap_table[u].dst->st_name) == 0 &&
+                                        smap_table[u].dst->bind == STB_GLOBAL)
+                                    {
+                                        // till now, the referencing row and referenced row are all found
+                                        // update the location
+                                        st_entry_t *eof_referenced = smap_table[u].dst;
+
+                                        (handler_table[(int)r->type])(
+                                            dst, eof_data_sh,
+                                            r->r_row - sym->st_value + eof_referencing->st_value, 
+                                            r->r_col, 
+                                            r->r_addend,
+                                            eof_referenced);
+                                        goto NEXT_REFERENCE_IN_DATA;
+                                    }
+                                }
+                            }
+                        }
+                        // referencing must be in smap_table
+                        // because it has definition, is a strong symbol
+                        assert(smap_found == 1);
+                    }
+                }
+            }
+            NEXT_REFERENCE_IN_DATA:
+            ;
+        }
+    }
+}
+
+
+
+// relocating handlers
+
+static void R_X86_64_32_handler(elf_t *dst, sh_entry_t *sh,
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced)
+{
+    printf("row = %d, col = %d, symbol referenced = %s\n",
+        row_referencing, col_referencing, sym_referenced->st_name
+    );
+}
+
+static void R_X86_64_PC32_handler(elf_t *dst, sh_entry_t *sh,
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced)
+{
+    printf("row = %d, col = %d, symbol referenced = %s\n",
+        row_referencing, col_referencing, sym_referenced->st_name
+    );
+}
+
+static void R_X86_64_PLT32_handler(elf_t *dst, sh_entry_t *sh,
+    int row_referencing, int col_referencing, int addend,
+    st_entry_t *sym_referenced)
+{
+    printf("row = %d, col = %d, symbol referenced = %s\n",
+        row_referencing, col_referencing, sym_referenced->st_name
+    );
 }
 
 
