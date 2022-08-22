@@ -360,19 +360,20 @@ void parse_elf(char *filename, elf_t *elf)
 
 void write_eof(const char *filename,elf_t *eof)
 {
-    //open elf file
-    FILE *fp;
-    fp = fopen(filename, "w");
-    if(fp == NULL)
+    // open elf file
+    FILE *fp = fopen(filename,"w");
+    if (fp == NULL)
     {
         debug_printf(DEBUG_LINKER, "unable to open file %s\n", filename);
         exit(1);
     }
-
-    for (int i = 0; i < eof->line_count;i++)
+    // printf("------------------------finish eof linker -------------\n");
+    
+    for (int i = 0; i < eof->line_count; ++i)
     {
-        fprintf(fp, "%s\n", eof->buffer[i]);
+        fprintf(fp,"%s\n", eof->buffer[i]);
     }
+
     fclose(fp);
 }
 void free_elf(elf_t *elf)
