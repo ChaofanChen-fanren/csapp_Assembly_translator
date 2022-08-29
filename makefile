@@ -19,8 +19,8 @@ TEST_ELF = $(SRC_DIR)/tests/test_elf.c
 
 .PHONY:hardware
 hardware:
-	$(CC) $(CFLAGS) -I$(SRC_DIR) $(COMMON) $(CPU) $(MEMORY) $(LINKER) $(TEST_ELF) -o $(TARGET_ELE)
-	./$(TARGET_ELE)
+	$(CC) $(CFLAGS) -I$(SRC_DIR) $(COMMON) $(CPU) $(MEMORY) $(LINKER) $(TEST_HARDWARE) -o $(TARGET_HARDWARE)
+	./$(TARGET_HARDWARE)
 
 clean:
 	rm -f *.o *~ $(TARGET_ELE)
